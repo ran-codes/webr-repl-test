@@ -149,26 +149,7 @@ const onPanelResize = (size: number) => {
 // Function to load sample CSV data into WebR
 async function loadSampleData() {
   try {
-    // Create sample datasets
-    const irisData = `
-Sepal.Length,Sepal.Width,Petal.Length,Petal.Width,Species
-5.1,3.5,1.4,0.2,setosa
-4.9,3.0,1.4,0.2,setosa
-4.7,3.2,1.3,0.2,setosa
-4.6,3.1,1.5,0.2,setosa
-5.0,3.6,1.4,0.2,setosa
-7.0,3.2,4.7,1.4,versicolor
-6.4,3.2,4.5,1.5,versicolor
-6.9,3.1,4.9,1.5,versicolor
-5.5,2.3,4.0,1.3,versicolor
-6.5,2.8,4.6,1.5,versicolor
-6.3,3.3,6.0,2.5,virginica
-5.8,2.7,5.1,1.9,virginica
-7.1,3.0,5.9,2.1,virginica
-6.3,2.9,5.6,1.8,virginica
-6.5,3.0,5.8,2.2,virginica
-`;
-
+    // Create mtcars dataset
     const mtcarsData = `
 mpg,cyl,disp,hp,drat,wt,qsec,vs,am,gear,carb
 21.0,6,160,110,3.90,2.620,16.46,0,1,4,4
@@ -183,54 +164,67 @@ mpg,cyl,disp,hp,drat,wt,qsec,vs,am,gear,carb
 19.2,6,167.6,123,3.92,3.440,18.30,1,0,4,4
 `;
 
-    // Sample R script
-    const helloScript = `
-# UHC Summer Institute - Hello World Script
-print("Hello World!")
-print("Welcome to UHC Summer Institute!")
+    // Analysis R script
+    const analysisScript = `
+## Dependencies
+install.packages('tidyverse')
+install.packages('lme4')
+install.packages('nloptr')
+library(tidyverse)
+library(lme4)
+library(nloptr)
 
-# Display current date and time
-print(paste("Today is:", Sys.Date()))
-print(paste("Current time:", Sys.time()))
+## Path
+getwd()
+setwd("/1_uhc_summer_class")
+getwd()
+list.files()
 
-# Simple data analysis example
-cat("\\n=== Quick Data Summary ===\\n")
-data(mtcars)
-print(paste("The mtcars dataset has", nrow(mtcars), "rows and", ncol(mtcars), "columns"))
-cat("\\nFirst few rows of mtcars:\\n")
-print(head(mtcars, 3))
+## Data
+df_data = read_csv("mtcars.csv")
+
+## Plot
+df_data |> 
+  ggplot(aes(x = wt, y = mpg)) + 
+  geom_point()
+
+## Model
+
+### Simple linear regression
+model_simple <- lm(mpg ~ wt, data = df_data)
+summary(model_simple)
+
+### Multiple regression
+model_multiple <- lm(mpg ~ wt + hp + cyl, data = df_data)
+summary(model_multiple)
+
+### Mixed Model
+model_mixed <- lmer(mpg ~ wt + hp + (1|cyl), data = df_data)
+summary(model_mixed)
 `;
 
-    // Create the directory structure /uhc-summer-institute/data/ (one level at a time)
-    await webR.FS.mkdir('/uhc-summer-institute');
-    await webR.FS.mkdir('/uhc-summer-institute/data');
+    // Create the directory /1_uhc_summer_class/
+    await webR.FS.mkdir('/1_uhc_summer_class');
 
-    // Write CSV files to the new directory
-    await webR.FS.writeFile('/uhc-summer-institute/data/iris.csv', new TextEncoder().encode(irisData));
-    await webR.FS.writeFile('/uhc-summer-institute/data/mtcars.csv', new TextEncoder().encode(mtcarsData));
-    
-    // Write the R script
-    await webR.FS.writeFile('/uhc-summer-institute/data/hello_world.R', new TextEncoder().encode(helloScript));
+    // Write files to the new directory
+    await webR.FS.writeFile('/1_uhc_summer_class/mtcars.csv', new TextEncoder().encode(mtcarsData));
+    await webR.FS.writeFile('/1_uhc_summer_class/analysis.R', new TextEncoder().encode(analysisScript));
     
     // Load the data into R environment
     await webR.evalRVoid(`
-      # Load sample datasets from new location
-      iris_data <- read.csv('/uhc-summer-institute/data/iris.csv')
-      mtcars_data <- read.csv('/uhc-summer-institute/data/mtcars.csv')
+      # Load mtcars dataset from CSV
+      mtcars_data <- read.csv('/1_uhc_summer_class/mtcars.csv')
       
-      # Make them available in global environment
-      assign('iris_sample', iris_data, envir = .GlobalEnv)
-      assign('mtcars_sample', mtcars_data, envir = .GlobalEnv)
+      # Make it available in global environment
+      assign('mtcars_data', mtcars_data, envir = .GlobalEnv)
       
-      cat('🎓 UHC Summer Institute Data Loaded!\\n')
-      cat('📁 Files available in /uhc-summer-institute/data/:\\n')
-      cat('  - iris.csv (iris dataset)\\n')
-      cat('  - mtcars.csv (mtcars dataset)\\n')
-      cat('  - hello_world.R (sample R script)\\n')
-      cat('\\n📊 Variables loaded:\\n')
-      cat('  - iris_sample (iris dataset)\\n')
-      cat('  - mtcars_sample (mtcars dataset)\\n')
-      cat('\\n💡 Try: source("/uhc-summer-institute/data/hello_world.R")\\n\\n')
+      cat('🎓 UHC Summer Class Data Loaded!\\n')
+      cat('📁 Files available in /1_uhc_summer_class/:\\n')
+      cat('  - mtcars.csv (car performance dataset)\\n')
+      cat('  - analysis.R (data analysis script)\\n')
+      cat('\\n📊 Variable loaded:\\n')
+      cat('  - mtcars_data (32 cars with 11 variables)\\n')
+      cat('\\n💡 Try: source("/1_uhc_summer_class/analysis.R")\\n\\n')
     `);
     
   } catch (error) {
@@ -265,7 +259,7 @@ async function loadCommonPackages() {
         )
         
         cat('  ✓ Common settings configured\\n')
-        cat('\\n🚀 Ready to use! Try: head(iris_sample) or plot(mtcars_sample$mpg)\\n\\n')
+        cat('\\n🚀 Ready to use! Try: head(mtcars_data) or plot(mtcars_data$mpg)\\n\\n')
         
       }, error = function(e) {
         cat('Some packages may not be available in WebR\\n')
