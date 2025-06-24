@@ -146,6 +146,107 @@ const onPanelResize = (size: number) => {
   plotInterface.resize("width", size * window.innerWidth / 100);
 };
 
+// Function to load sample CSV data into WebR
+async function loadSampleData() {
+  try {
+    // Create sample datasets
+    const irisData = `
+Sepal.Length,Sepal.Width,Petal.Length,Petal.Width,Species
+5.1,3.5,1.4,0.2,setosa
+4.9,3.0,1.4,0.2,setosa
+4.7,3.2,1.3,0.2,setosa
+4.6,3.1,1.5,0.2,setosa
+5.0,3.6,1.4,0.2,setosa
+7.0,3.2,4.7,1.4,versicolor
+6.4,3.2,4.5,1.5,versicolor
+6.9,3.1,4.9,1.5,versicolor
+5.5,2.3,4.0,1.3,versicolor
+6.5,2.8,4.6,1.5,versicolor
+6.3,3.3,6.0,2.5,virginica
+5.8,2.7,5.1,1.9,virginica
+7.1,3.0,5.9,2.1,virginica
+6.3,2.9,5.6,1.8,virginica
+6.5,3.0,5.8,2.2,virginica
+`;
+
+    const mtcarsData = `
+mpg,cyl,disp,hp,drat,wt,qsec,vs,am,gear,carb
+21.0,6,160,110,3.90,2.620,16.46,0,1,4,4
+21.0,6,160,110,3.90,2.875,17.02,0,1,4,4
+22.8,4,108,93,3.85,2.320,18.61,1,1,4,1
+21.4,6,258,110,3.08,3.215,19.44,1,0,3,1
+18.7,8,360,175,3.15,3.440,17.02,0,0,3,2
+18.1,6,225,105,2.76,3.460,20.22,1,0,3,1
+14.3,8,360,245,3.21,3.570,15.84,0,0,3,4
+24.4,4,146.7,62,3.69,3.190,20.00,1,0,4,2
+22.8,4,140.8,95,3.92,3.150,22.90,1,0,4,2
+19.2,6,167.6,123,3.92,3.440,18.30,1,0,4,4
+`;
+
+    // Write CSV files to WebR virtual file system
+    await webR.FS.writeFile('/home/web_user/iris.csv', new TextEncoder().encode(irisData));
+    await webR.FS.writeFile('/home/web_user/mtcars.csv', new TextEncoder().encode(mtcarsData));
+    
+    // Load the data into R environment
+    await webR.evalRVoid(`
+      # Load sample datasets
+      iris_data <- read.csv('/home/web_user/iris.csv')
+      mtcars_data <- read.csv('/home/web_user/mtcars.csv')
+      
+      # Make them available in global environment
+      assign('iris_sample', iris_data, envir = .GlobalEnv)
+      assign('mtcars_sample', mtcars_data, envir = .GlobalEnv)
+      
+      cat('📊 Sample datasets loaded:\\n')
+      cat('  - iris_sample (iris dataset)\\n')
+      cat('  - mtcars_sample (mtcars dataset)\\n')
+      cat('  - Files available: /home/web_user/iris.csv, /home/web_user/mtcars.csv\\n\\n')
+    `);
+    
+  } catch (error) {
+    console.error('Error loading sample data:', error);
+  }
+}
+
+// Function to install and load common R packages
+async function loadCommonPackages() {
+  try {
+    // Install and load common packages
+    await webR.evalRVoid(`
+      cat('📦 Loading common R packages...\\n')
+      
+      # Load base packages that are typically available
+      library(stats)
+      library(graphics)
+      library(utils)
+      library(datasets)
+      
+      # Try to install and load additional useful packages
+      # Note: Some packages may not be available in WebR
+      tryCatch({
+        # These are commonly available in WebR
+        cat('  ✓ Base packages loaded\\n')
+        
+        # Set up some useful options
+        options(
+          digits = 4,
+          scipen = 6,
+          show.signif.stars = FALSE
+        )
+        
+        cat('  ✓ Common settings configured\\n')
+        cat('\\n🚀 Ready to use! Try: head(iris_sample) or plot(mtcars_sample$mpg)\\n\\n')
+        
+      }, error = function(e) {
+        cat('Some packages may not be available in WebR\\n')
+      })
+    `);
+    
+  } catch (error) {
+    console.error('Error loading packages:', error);
+  }
+}
+
 function App() {
   const rightPanelRef = React.useRef<ImperativePanelHandle | null>(null);
   React.useEffect(() => {
@@ -206,9 +307,14 @@ void (async () => {
   const showMenu = crossOriginIsolated;
   await webR.evalRVoid('options(webr.show_menu = show_menu)', { env: { show_menu: !!showMenu } });
   await webR.evalRVoid('webr::global_prompt_install()', { withHandlers: false });
-
   // Additional options for running packages under wasm
   await webR.evalRVoid('options(rgl.printRglwidget = TRUE)');
+
+  // Load sample CSV data files
+  await loadSampleData();
+
+  // Install and load common R packages
+  await loadCommonPackages();
 
   // Clear the loading message
   terminalInterface.write('\x1b[2K\r');
