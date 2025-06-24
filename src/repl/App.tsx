@@ -183,24 +183,54 @@ mpg,cyl,disp,hp,drat,wt,qsec,vs,am,gear,carb
 19.2,6,167.6,123,3.92,3.440,18.30,1,0,4,4
 `;
 
-    // Write CSV files to WebR virtual file system
-    await webR.FS.writeFile('/home/web_user/iris.csv', new TextEncoder().encode(irisData));
-    await webR.FS.writeFile('/home/web_user/mtcars.csv', new TextEncoder().encode(mtcarsData));
+    // Sample R script
+    const helloScript = `
+# UHC Summer Institute - Hello World Script
+print("Hello World!")
+print("Welcome to UHC Summer Institute!")
+
+# Display current date and time
+print(paste("Today is:", Sys.Date()))
+print(paste("Current time:", Sys.time()))
+
+# Simple data analysis example
+cat("\\n=== Quick Data Summary ===\\n")
+data(mtcars)
+print(paste("The mtcars dataset has", nrow(mtcars), "rows and", ncol(mtcars), "columns"))
+cat("\\nFirst few rows of mtcars:\\n")
+print(head(mtcars, 3))
+`;
+
+    // Create the directory structure /uhc-summer-institute/data/ (one level at a time)
+    await webR.FS.mkdir('/uhc-summer-institute');
+    await webR.FS.mkdir('/uhc-summer-institute/data');
+
+    // Write CSV files to the new directory
+    await webR.FS.writeFile('/uhc-summer-institute/data/iris.csv', new TextEncoder().encode(irisData));
+    await webR.FS.writeFile('/uhc-summer-institute/data/mtcars.csv', new TextEncoder().encode(mtcarsData));
+    
+    // Write the R script
+    await webR.FS.writeFile('/uhc-summer-institute/data/hello_world.R', new TextEncoder().encode(helloScript));
     
     // Load the data into R environment
     await webR.evalRVoid(`
-      # Load sample datasets
-      iris_data <- read.csv('/home/web_user/iris.csv')
-      mtcars_data <- read.csv('/home/web_user/mtcars.csv')
+      # Load sample datasets from new location
+      iris_data <- read.csv('/uhc-summer-institute/data/iris.csv')
+      mtcars_data <- read.csv('/uhc-summer-institute/data/mtcars.csv')
       
       # Make them available in global environment
       assign('iris_sample', iris_data, envir = .GlobalEnv)
       assign('mtcars_sample', mtcars_data, envir = .GlobalEnv)
       
-      cat('📊 Sample datasets loaded:\\n')
+      cat('🎓 UHC Summer Institute Data Loaded!\\n')
+      cat('📁 Files available in /uhc-summer-institute/data/:\\n')
+      cat('  - iris.csv (iris dataset)\\n')
+      cat('  - mtcars.csv (mtcars dataset)\\n')
+      cat('  - hello_world.R (sample R script)\\n')
+      cat('\\n📊 Variables loaded:\\n')
       cat('  - iris_sample (iris dataset)\\n')
       cat('  - mtcars_sample (mtcars dataset)\\n')
-      cat('  - Files available: /home/web_user/iris.csv, /home/web_user/mtcars.csv\\n\\n')
+      cat('\\n💡 Try: source("/uhc-summer-institute/data/hello_world.R")\\n\\n')
     `);
     
   } catch (error) {
